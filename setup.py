@@ -9,6 +9,7 @@ setup(name='spp',
       author_email='jalexander@stsci.edu',
       url='',
       install_requires = [
+        'requests',
         'conda_api'
       ],
       packages=['spp'],
