@@ -2,61 +2,43 @@ import conda_api as conda
 import argparse
 
 
-class PackageInfo(argparse.Action):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(PackageInfo, self).__init__(option_strings, dest, **kwargs)
+def get_package_info(name, platform=None):
+    #TODO: add conda main channel, add Pypi
+    channels = ("http://ssb.stsci.edu/astroconda-dev", "http://ssb.stsci.edu/astroconda")
+    kwargs = { 'channel': '', "override_channels": " "}
 
-    def __call__(self, parser, namespace, value, option_string=None):
-        setattr(namespace, self.dest, value)
-        get_package_info(value)
+    if platform is not None:
+        kwargs.update({'platform': platform})
 
-
-class ChannelAdd(argparse.Action):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(ChannelAdd, self).__init__(option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, value, option_string=None):
-        setattr(namespace, self.dest, values)
-        add_channels(values)
+    print("\nPackage: {0}\n-------------------------".format(name))
+    for channel in channels:
+        kwargs.update({'channel': channel})
+        print("\nChannel: {0}\n---------------------------------------".format(channel))
+        print_packages(conda.search(name, **kwargs))
 
 
-def get_package_info(name):
-    #TODO: add options for specifying channel
-    packages = conda.package_info(name)
-    print(name)
-
-    for package, releases in packages.items():
-        for release in releases:
-            print("Build:   {0}\nChannel: {1}\nFn:      {2}\nSubdir:  {3}\nURL:     {4}\nVersion: {5}\n"
-                .format(release['build'], release['channel'], release['fn'], release['subdir'], release['url'], release['version']))
-
-
-def add_channels(channels):
-    #TODO: validate urls, add if valid
-    #conda.config_add("channels", "http://ssb.stsci.edu/astroconda-dev")
-    #print(conda.config_get()['channels'])
-    #conda.config_remove("channels", "http://ssb.stsci.edu/astroconda-dev")
-    #print(conda.config_get()['channels'])
-    return
-
-
-def display_channels():
-    return
+def print_packages(packages):
+    from operator import itemgetter
+    releases = list(packages.values())[0]
+    for release in sorted(releases, key=itemgetter('version'), reverse=True):
+        if isinstance(release, dict):
+            print("Build:   {0}\nChannel: {1}\nFn:      {2}\nSubdir:  {3}\nVersion: {4}\n"
+                    .format(release['build'], release['channel'], release['fn'], release['subdir'], release['version']))
+        else:
+            exit(1) #TODO: handle error parsing stdout
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--package', '-p', action = PackageInfo, dest = 'package', help = 'Check releases of a package given a package name.')
+    parser.add_argument('--package', '-p', action = "store", dest = 'package', help = 'Specify a package name to check.')
 
-    parser.add_argument('--channel', '-c', action = ChannelAdd, dest = 'channels', help = 'Add Conda channel')
+    parser.add_argument('--platform', '-pl', action = "store", dest = 'platform', choices=["osx-64", "linux-32", "linux-64"],
+                            help = '(Optional) Specify a platform.', required=False)
 
     args = parser.parse_args()
 
+    get_package_info(args.package, platform=args.platform)
 
 if (__name__ == '__main__'):
     main()
