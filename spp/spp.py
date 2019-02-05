@@ -1,7 +1,18 @@
 import json
 import argparse
 import requests
+import platform as p
 
+systems = dict(
+    Linux='linux',
+    Darwin='osx',
+    Windows='win'
+)
+
+machines = dict(
+    i386='32',
+    x86_64='64'
+)
 
 def get_package_info(name, platform=None):
     ## TODO: add pypi channel integration
@@ -45,7 +56,9 @@ def print_releases(releases):
 
 # gets user platform
 def get_platform():
-    return
+    system = systems[p.system()]
+    machine = machines[p.machine()]
+    return f"{system}-{machine}"
 
 
 def main():
