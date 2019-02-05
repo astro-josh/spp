@@ -10,7 +10,6 @@ setup(name='spp',
       url='',
       install_requires = [
         'requests',
-        'conda_api'
       ],
       packages=['spp'],
       entry_points = {
