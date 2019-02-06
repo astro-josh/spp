@@ -14,7 +14,8 @@ setup(name='spp',
       packages=['spp'],
       entry_points = {
           'console_scripts': [
-              'spp = src.spp:main'
+              'spp = spp.spp:main',
+              'spp-get = spp.spp:get'
           ]
       },
       )
