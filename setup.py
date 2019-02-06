@@ -15,7 +15,6 @@ setup(name='spp',
       entry_points = {
           'console_scripts': [
               'spp = spp.spp:main',
-              'spp-get = spp.spp:get'
           ]
       },
       )
