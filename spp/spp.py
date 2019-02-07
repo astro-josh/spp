@@ -2,7 +2,8 @@ import json
 import argparse
 import requests
 import platform as p
-from distutils.version import LooseVersion
+from pkg_resources import parse_version
+
 
 # used to map system/machine info to a channel platform
 systems = dict(
@@ -42,7 +43,7 @@ def get_channel_data(url):
     return data
 
 
-def display_package_info(name, platform=None, latest_only=False):
+def display_package_info(name, platform=None, all=False):
     name = name.lower()
 
     # if platform is not set, get user platform
@@ -53,16 +54,7 @@ def display_package_info(name, platform=None, latest_only=False):
     fchannels = {k : v.format(platform=platform, name=name) for k, v in channels.items()}
     print(f"\nPackage: {name}\nSubdir: {platform}\n" + "-" * 30 + "\n")
 
-    if latest_only:
-        versions = {}
-        for channel in fchannels.items():
-            versions[channel[0]] = get_latest_release(channel, name)
-
-        #print(versions)
-        # # TODO: make table look better, perhaps use a module?
-        print("Channel    |", *versions, sep="\t\t")
-        print("Version    |", *list(versions.values()), sep="\t\t\t")
-    else:
+    if all:
         for channel, channel_url in fchannels.items():
             print(f"\nChannel: {channel}\n" + "-" *30)
             try:
@@ -86,6 +78,14 @@ def display_package_info(name, platform=None, latest_only=False):
                 print("No releases.\n")
             except IndexError as e:
                 print("No releases.\n")
+    else:
+        versions = {}
+        for channel in fchannels.items():
+            versions[channel[0]] = get_latest_release(channel, name)
+
+        # # TODO: make table look better, perhaps use a module?
+        print("Channel    |", *versions, sep="\t\t")
+        print("Version    |", *list(versions.values()), sep="\t\t\t")
 
 
 # prints available releases from json data, latest version first
@@ -95,19 +95,19 @@ def print_releases(releases, channel, name):
     if len(releases) > 0:
         if channel == "Pypi":
             # pypi json is formatted differently
-            for release, info in sorted(releases.items(), key=lambda x: LooseVersion(x[0]), reverse=True):
+            for release, info in sorted(releases.items(), key=lambda x: parse_version(x[0]), reverse=True):
                 print("Build:     {0}\nVersion:   {1}\nFile:      {2}\n"
                         .format(name + "-" + release + "-" + info[0]['python_version'], release, info[0]['filename']))
         elif channel == "Github":
             url = releases["html_url"]
             print(f"Repo: {url}\n")
             releases = get_channel_data(releases['tags_url'])
-            for release in sorted(releases, key=lambda x: LooseVersion(x['name']), reverse=True):
+            for release in sorted(releases, key=lambda x: parse_version(x['name']), reverse=True):
                 print("Version:   {0}\nFile:      {1}\n"
-                        .format(release['name'].strip('v'), release['tarball_url']))
+                        .format(release['name'], release['tarball_url']))
         else:
             #for release in sorted(releases.items(), key=lambda k_v: k_v[1]['version'], reverse=True):
-            for release in sorted(releases.items(), key=lambda x: LooseVersion(x[1]['version']), reverse=True):
+            for release in sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True):
                 print("Build:     {0}\nVersion:   {1}\nFile:      {2}\n"
                         .format(release[1]['build'], release[1]['version'], release[0]))
     else:
@@ -121,16 +121,19 @@ def get_latest_release(channel, name):
         if channel[0] == "Pypi":
             release = get_channel_data(channel[1])['info']['version']
         elif channel[0] == "Github":
-            print('github')
+            packages = get_channel_data(channel[1])['items'][0]
+            releases = get_channel_data(packages['tags_url'])
+            release = sorted(releases, key=lambda x: parse_version(x['name']), reverse=True)[0]['name']
         else:
             packages = get_channel_data(channel[1])['packages']
             # get only the releases matching the name of the package
             releases = {k : v for k, v in packages.items() if v["name"] == str.casefold(name)}
             if len(releases) > 0:
-                release = sorted(releases.items(), key=lambda x: LooseVersion(x[1]['version']), reverse=True)[0][1]['version']
+                release = sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True)[0][1]['version']
+    # key or index error means returned channel data not formatted as expected, i.e. no releases
     except KeyError as e:
-        # any error here is due to parsing the data returned from get_channel_data,
-        # this means there are no releases or error with channel url
+        pass
+    except IndexError as e:
         pass
 
     return release
@@ -143,7 +146,6 @@ def get_platform():
     return f"{system}-{machine}"
 
 
-# default, gets all available package versions
 def main():
     parser = argparse.ArgumentParser()
 
@@ -153,14 +155,14 @@ def main():
                             choices=["osx-64", "linux-32", "linux-64", "win-32", "win-64", "noarch"],
                             help = '(Optional) Specify a platform.', required=False)
 
-    parser.add_argument('--latest', '-l', action = "store_true", dest = 'latest_only',
-                            help = 'Only display latest version available for each channel.', required=False)
+    # defaults to only showing latest version, shows all if given -a
+    parser.add_argument('--all', '-a', action = "store_true", dest = 'all',
+                            help = 'Display all versions available on each channel.', required=False)
 
     ## TODO: add option to output to file
-
     args = parser.parse_args()
 
-    display_package_info(name=args.package, platform=args.platform, latest_only=args.latest_only)
+    display_package_info(name=args.package, platform=args.platform, all=args.all)
 
 if (__name__ == '__main__'):
     main()
