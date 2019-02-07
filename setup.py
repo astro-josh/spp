@@ -10,6 +10,7 @@ setup(name='spp',
       url='',
       install_requires = [
         'requests',
+        'beautifultable'
       ],
       packages=find_packages(),
       entry_points = {

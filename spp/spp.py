@@ -3,6 +3,7 @@ import argparse
 import requests
 import platform as p
 from pkg_resources import parse_version
+from beautifultable import BeautifulTable
 
 
 # used to map system/machine info to a channel platform
@@ -65,7 +66,6 @@ def display_package_info(name, platform=None, all=False):
                     print_releases(releases, channel, name)
                 elif channel == "Github":
                     packages = get_channel_data(channel_url)
-                    #if packages['total_count'] > 0:
                     releases = packages['items'][0]
                     print_releases(releases, channel, name)
                 else:
@@ -79,13 +79,13 @@ def display_package_info(name, platform=None, all=False):
             except IndexError as e:
                 print("No releases.\n")
     else:
-        versions = {}
-        for channel in fchannels.items():
-            versions[channel[0]] = get_latest_release(channel, name)
+        table = BeautifulTable()
+        table.set_style(BeautifulTable.STYLE_GRID)
 
-        # # TODO: make table look better, perhaps use a module?
-        print("Channel    |", *versions, sep="\t\t")
-        print("Version    |", *list(versions.values()), sep="\t\t\t")
+        for channel in fchannels.items():
+            table.append_column(channel[0], [get_latest_release(channel, name)])
+
+        print(table)
 
 
 # prints available releases from json data, latest version first
@@ -93,23 +93,22 @@ def print_releases(releases, channel, name):
     ## TODO: print in table format
 
     if len(releases) > 0:
+        table = BeautifulTable()
+        table.set_style(BeautifulTable.STYLE_GRID)
         if channel == "Pypi":
-            # pypi json is formatted differently
-            for release, info in sorted(releases.items(), key=lambda x: parse_version(x[0]), reverse=True):
-                print("Build:     {0}\nVersion:   {1}\nFile:      {2}\n"
-                        .format(name + "-" + release + "-" + info[0]['python_version'], release, info[0]['filename']))
+            table.append_column('Version', sorted(releases.keys(), key=lambda x: parse_version(x), reverse=True))
         elif channel == "Github":
             url = releases["html_url"]
             print(f"Repo: {url}\n")
             releases = get_channel_data(releases['tags_url'])
-            for release in sorted(releases, key=lambda x: parse_version(x['name']), reverse=True):
-                print("Version:   {0}\nFile:      {1}\n"
-                        .format(release['name'], release['tarball_url']))
+            releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
+            table.append_column('Version', [x['name'] for x in releases])
+            table.append_column('File', [x['tarball_url'] for x in releases])
         else:
-            #for release in sorted(releases.items(), key=lambda k_v: k_v[1]['version'], reverse=True):
-            for release in sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True):
-                print("Build:     {0}\nVersion:   {1}\nFile:      {2}\n"
-                        .format(release[1]['build'], release[1]['version'], release[0]))
+            releases = sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True)
+            table.append_column('Version', [x[1]['version'] for x in releases])
+            table.append_column('Build', [x[1]['build'] for x in releases])
+        print(table)
     else:
         # releases is empty, no data for the package
         print("No releases.\n")
@@ -117,6 +116,7 @@ def print_releases(releases, channel, name):
 
 def get_latest_release(channel, name):
     release = 'None'
+    
     try:
         if channel[0] == "Pypi":
             release = get_channel_data(channel[1])['info']['version']
