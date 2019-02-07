@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 PACKAGENAME='spp'
 
@@ -11,7 +11,7 @@ setup(name='spp',
       install_requires = [
         'requests',
       ],
-      packages=['spp'],
+      packages=find_packages(),
       entry_points = {
           'console_scripts': [
               'spp = spp.spp:main',
