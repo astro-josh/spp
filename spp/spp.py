@@ -56,87 +56,93 @@ def display_package_info(name, platform=None, all=False):
     print(f"\nPackage: {name}\nSubdir: {platform}\n" + "-" * 30 + "\n")
 
     if all:
-        for channel, channel_url in fchannels.items():
-            print(f"\nChannel: {channel}\n" + "-" *30)
-            try:
-                if channel == "Pypi":
-                    packages = get_channel_data(channel_url)['releases']
-                    # get only available (non-empty) releases
-                    releases = {k : v for k, v in packages.items() if v}
-                    print_releases(releases, channel, name)
-                elif channel == "Github":
-                    packages = get_channel_data(channel_url)
-                    releases = packages['items'][0]
-                    print_releases(releases, channel, name)
-                else:
-                    packages = get_channel_data(channel_url)['packages']
-                    # get only the releases matching the name of the package
-                    releases = {k : v for k, v in packages.items() if v["name"] == str.casefold(name)}
-                    print_releases(releases, channel, name)
-            # key or index error means returned channel data not formatted as expected, i.e. no releases
-            except KeyError as e:
-                print("No releases.\n")
-            except IndexError as e:
-                print("No releases.\n")
-    else:
-        table = BeautifulTable()
-        table.set_style(BeautifulTable.STYLE_GRID)
-
         for channel in fchannels.items():
-            table.append_column(channel[0], [get_latest_release(channel, name)])
+            print(f"\nChannel: {channel[0]}\n" + "-" *30)
+            releases = get_releases(channel, name)
+            print_releases(releases, channel, name, all)
+    else:
+        releases = get_latest_releases(fchannels, name)
+        print_releases(releases, channels, name, all)
 
-        print(table)
 
-
-# prints available releases from json data, latest version first
-def print_releases(releases, channel, name):
-    ## TODO: print in table format
-
+def print_releases(releases, channel, name, all):
     if len(releases) > 0:
         table = BeautifulTable()
         table.set_style(BeautifulTable.STYLE_GRID)
-        if channel == "Pypi":
-            table.append_column('Version', sorted(releases.keys(), key=lambda x: parse_version(x), reverse=True))
-        elif channel == "Github":
-            url = releases["html_url"]
-            print(f"Repo: {url}\n")
-            releases = get_channel_data(releases['tags_url'])
-            releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
-            table.append_column('Version', [x['name'] for x in releases])
-            table.append_column('File', [x['tarball_url'] for x in releases])
+        if all:
+            if channel[0] == "Pypi":
+                table.append_column('Version', releases)
+            elif channel[0] == "Github":
+                table.append_column('Version', [x['name'] for x in releases])
+                table.append_column('File', [x['tarball_url'] for x in releases])
+            else:
+                table.append_column('Version', [x[1]['version'] for x in releases])
+                table.append_column('Build', [x[1]['build'] for x in releases])
         else:
-            releases = sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True)
-            table.append_column('Version', [x[1]['version'] for x in releases])
-            table.append_column('Build', [x[1]['build'] for x in releases])
+            table.column_headers = list(releases.keys())
+            table.append_row(list(releases.values()))
         print(table)
     else:
         # releases is empty, no data for the package
         print("No releases.\n")
 
 
-def get_latest_release(channel, name):
-    release = 'None'
-    
+def get_releases(channel, name):
+    releases = ()
+
     try:
         if channel[0] == "Pypi":
-            release = get_channel_data(channel[1])['info']['version']
+            packages = get_channel_data(channel[1])['releases']
+            # get only available (non-empty) releases
+            releases = {k : v for k, v in packages.items() if v}
+            releases = sorted(releases.keys(), key=lambda x: parse_version(x), reverse=True)
         elif channel[0] == "Github":
             packages = get_channel_data(channel[1])['items'][0]
+            print(f"Repo: {packages['html_url']}\n")
+            # get the releases from the tags endpoint
             releases = get_channel_data(packages['tags_url'])
-            release = sorted(releases, key=lambda x: parse_version(x['name']), reverse=True)[0]['name']
+            releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
         else:
             packages = get_channel_data(channel[1])['packages']
             # get only the releases matching the name of the package
             releases = {k : v for k, v in packages.items() if v["name"] == str.casefold(name)}
-            if len(releases) > 0:
-                release = sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True)[0][1]['version']
+            releases = sorted(releases.items(), key=lambda x: parse_version(x[1]['version']), reverse=True)
+
     # key or index error means returned channel data not formatted as expected, i.e. no releases
     except KeyError as e:
         pass
     except IndexError as e:
         pass
 
-    return release
+    return releases
+
+
+def get_latest_releases(channels, name):
+    latest_releases = dict(zip(channels.keys(), ['None'] * len(channels)))
+
+    try:
+        for channel, version in latest_releases.items():
+            if channel == 'Pypi':
+                latest_releases[channel] = get_channel_data(channels[channel])['info']['version']
+            elif channel == 'Github':
+                packages = get_channel_data(channels[channel])['items'][0]
+                releases = get_channel_data(packages['tags_url'])
+                latest_releases[channel] = sorted(releases, key=lambda x: parse_version(x['name']), reverse=True)[0]['name']
+            else:
+                packages = get_channel_data(channels[channel])['packages']
+                # get only the releases matching the name of the package
+                releases = {k : v for k, v in packages.items() if v["name"] == str.casefold(name)}
+                if len(releases) > 0:
+                    latest_releases[channel] = sorted(releases.items(), key=lambda x: parse_version(x[1]['version']),
+                                                        reverse=True)[0][1]['version']
+
+    # key or index error means returned channel data not formatted as expected, i.e. no release
+    except KeyError as e:
+        pass
+    except IndexError as e:
+        pass
+
+    return latest_releases
 
 
 # gets user platform

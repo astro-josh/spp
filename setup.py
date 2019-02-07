@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 PACKAGENAME='spp'
 
 setup(name='spp',
-      version='0.1.0',
+      version='0.1.1',
       description='Simple Package Info Poller',
       author='Joshua Alexander',
       author_email='jalexander@stsci.edu',
