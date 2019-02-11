@@ -14,15 +14,15 @@ SPP Requires requests and beautifultable as well as Python >= 3.
 
 ```
 $ spp --help
-usage: spp.py [-h] --package PACKAGE (required)
-              [--platform {osx-64,linux-32,linux-64,win-32,win-64,noarch}] (optional)
-              [--all] (optional)
+usage: spp.py [-h] --package, -p PACKAGE (required)
+              [--platform, -pl {osx-64,linux-32,linux-64,win-32,win-64,noarch}] (optional)
+              [--all, -a] (optional)
 ```
 
 
 ## Examples
 
--What versions of astroscrappy are available?
+What versions of astroscrappy are available?
 
 ```bash
 $ spp -p astroscrappy
@@ -31,7 +31,7 @@ $ spp -p astroscrappy
 On linux-64?
 
 ```bash
-$ spp -p astroscrappy -p linux-64
+$ spp -p astroscrappy -pl linux-64
 ```
 
 All info
