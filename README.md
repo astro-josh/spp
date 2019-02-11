@@ -8,21 +8,27 @@ None.
 
 ## Requirements
 
-SPP Requires requests and beautifultable as well as Python >= 3.
+SPP requires the requests and beautifultable modules as well as Python >= 3.
 
 ## Usage
 
 ```
-$ spp --help
-usage: spp.py [-h] --package, -p PACKAGE (required)
-              [--platform, -pl {osx-64,linux-32,linux-64,win-32,win-64,noarch}] (optional)
-              [--all, -a] (optional)
-```
+$ spp [-h] --package PACKAGE
+              [--platform {osx-64,linux-32,linux-64,win-32,win-64,noarch}]
+              [--all] [--json]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  --package, -p         Specify a package name to check.
+  --platform, pl {osx-64,linux-32,linux-64,win-32,win-64,noarch}
+                        Specify a platform.
+  --all, -a             Display all versions available on each channel.
+  --json, -j            Save JSON output.
+```
 
 ## Examples
 
-What versions of astroscrappy are available?
+What versions of astroscrappy are available and what channel/repo are they in?
 
 ```bash
 $ spp -p astroscrappy
@@ -37,5 +43,11 @@ $ spp -p astroscrappy -pl linux-64
 All info
 
 ```bash
-$ spp -p astroscrappy -p linux-64 --all
+$ spp -p astroscrappy -pl linux-64 -a
+```
+
+Output to JSON file
+
+```bash
+$ spp -p astroscrappy -pl linux-64 -a -j
 ```

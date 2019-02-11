@@ -28,6 +28,18 @@ channels = {
 }
 
 
+class colors:
+    """Output color options"""
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def get_channel_data(url):
     """Returns channel JSON data from a given url"""
     data = {}
@@ -53,7 +65,7 @@ def display_package_info(name, platform=None, all=False):
     if platform is None:
         platform = get_platform()
 
-    # format channels by adding platform to conda channels and package name to pypi
+    # format channels by adding platform to conda channels and package name to pypi/git
     fchannels = {k : v.format(platform=platform, name=name) for k, v in channels.items()}
     print(f"\nPackage: {name}\nSubdir: {platform}\n" + "-" * 30 + "\n")
 
@@ -65,6 +77,24 @@ def display_package_info(name, platform=None, all=False):
     else:
         releases = get_latest_releases(fchannels, name)
         print_releases(releases, all)
+
+
+def json_package_info(name, platform=None, all=False):
+    """Outputs package info to JSON"""
+    name = name.lower()
+
+    # if platform is not set, get user platform
+    if platform is None:
+        platform = get_platform()
+
+    # format channels by adding platform to conda channels and package name to pypi/git
+    fchannels = {k : v.format(platform=platform, name=name) for k, v in channels.items()}
+
+    json_dict = get_json_releases(dict(Package = name, Subdir = platform), all, fchannels)
+
+    with open(f'spp_{name}_{platform}.json', 'w') as file:
+        print(f'Saving JSON to: spp_{name}_{platform}.json')
+        json.dump(json_dict, file, indent=4)
 
 
 def print_releases(releases, all, channel=None):
@@ -90,6 +120,29 @@ def print_releases(releases, all, channel=None):
     else:
         # releases is empty, no data for the package
         print("No releases.\n")
+
+
+def get_json_releases(json, all, fchannels):
+    """Returns release info in JSON format"""
+    name = json['Package']
+
+    if all:
+        json.update(Releases = {})
+        for channel in fchannels.items():
+            releases = get_releases(channel, name)
+            if channel[0] == "Pypi":
+                json['Releases'].update({channel[0]: releases})
+            elif channel[0] == "Github":
+                json['Releases'].update({channel[0]: [dict(zip([x['name'] for x in releases],
+                                                    [x['tarball_url'] for x in releases]))]})
+            else:
+                json['Releases'].update({channel[0]: [dict(zip([x['version'] for x in releases],
+                                                    [x['build'] for x in releases]))]})
+    else:
+        releases = get_latest_releases(fchannels, name)
+        json.update(Latest_Releases = releases)
+
+    return json
 
 
 def get_releases(channel, name):
@@ -155,7 +208,6 @@ def get_latest_releases(channels, name):
     return latest_releases
 
 
-# gets user platform
 def get_platform():
     """Gets the platform of the machine using system mappings"""
     system = systems[p.system()]
@@ -167,20 +219,28 @@ def main():
     """Gets arguments from command line to display package release info"""
     parser = argparse.ArgumentParser()
 
+    # package name
     parser.add_argument('--package', '-p', action = "store", dest = 'package', help = 'Specify a package name to check.', required=True)
 
+    # option for specifying a platform
     parser.add_argument('--platform', '-pl', action = "store", dest = 'platform',
                             choices=["osx-64", "linux-32", "linux-64", "win-32", "win-64", "noarch"],
-                            help = '(Optional) Specify a platform.', required=False)
+                            help = 'Specify a platform.', required=False)
 
     # defaults to only showing latest version, shows all if given -a
     parser.add_argument('--all', '-a', action = "store_true", dest = 'all',
                             help = 'Display all versions available on each channel.', required=False)
 
-    ## TODO: add option to output to file
+    # option to output to file in JSON format
+    parser.add_argument('--json', '-j', action = "store_true", dest = 'json',
+                            help = 'Save JSON output.', required=False)
+
     args = parser.parse_args()
 
-    display_package_info(name=args.package, platform=args.platform, all=args.all)
+    if args.json:
+        json_package_info(name=args.package, platform=args.platform, all=args.all)
+    else:
+        display_package_info(name=args.package, platform=args.platform, all=args.all)
 
 if (__name__ == '__main__'):
     main()
