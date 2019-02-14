@@ -108,8 +108,8 @@ def print_releases(releases, all, channel=None):
             if channel[0] == "Pypi":
                 table.append_column('Version', releases)
             elif channel[0] == "Github":
-                table.append_column('Version', [x['name'] for x in releases])
-                table.append_column('File', [x['tarball_url'] for x in releases])
+                table.append_column('Version', [x['tag_name']
+                        if 'tag_name' in x.keys() else x['name'] for x in releases])
             else:
                 table.append_column('Version', [x['version'] for x in releases])
                 table.append_column('Build', [x['build'] for x in releases])
@@ -153,14 +153,21 @@ def get_releases(channel, name):
         if channel[0] == "Pypi":
             packages = get_channel_data(channel[1])['releases']
             # get only available (non-empty) releases
-            releases = [k  for k in packages.keys() if k]
+            releases = [k for k in packages.keys() if k]
             releases.sort(key=lambda x: parse_version(x), reverse=True)
         elif channel[0] == "Github":
             packages = get_channel_data(channel[1])['items'][0]
             print(f"Repo: {packages['html_url']}\n")
-            # get the releases from the tags endpoint
-            releases = get_channel_data(packages['tags_url'])
-            releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
+
+            # first try and get releases from releases endpoint
+            releases = get_channel_data(packages['releases_url'].replace('{/id}', ''))
+
+            if 'tag_name' in releases[0].keys():
+                releases.sort(key=lambda x: parse_version(x['tag_name']), reverse=True)
+            else:
+                # if no releases fallback on tags endpoint
+                releases = get_channel_data(packages['tags_url'])
+                releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
         else:
             packages = get_channel_data(channel[1])['packages']
             # get only the releases matching the name of the package
@@ -187,10 +194,18 @@ def get_latest_releases(channels, name):
                 latest_releases[channel] = get_channel_data(channels[channel])['info']['version']
             elif channel == 'Github':
                 packages = get_channel_data(channels[channel])['items'][0]
-                releases = get_channel_data(packages['tags_url'])
-                # sort by version number
-                releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
-                latest_releases[channel] = releases[0]['name']
+
+                # first try and get releases from releases endpoint
+                releases = get_channel_data(packages['releases_url'].replace('{/id}', ''))
+
+                if 'tag_name' in releases[0].keys():
+                    releases.sort(key=lambda x: parse_version(x['tag_name']), reverse=True)
+                    latest_releases[channel] = releases[0]['tag_name']
+                else:
+                    # if no releases fallback on tags endpoint
+                    releases = get_channel_data(packages['tags_url'])
+                    releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
+                    latest_releases[channel] = releases[0]['name']
             else:
                 packages = get_channel_data(channels[channel])['packages']
                 # get only the releases matching the name of the package
@@ -220,7 +235,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     # package name
-    parser.add_argument('--package', '-p', action = "store", dest = 'package', help = 'Specify a package name to check.', required=True)
+    parser.add_argument('--package', '-p', action = "store", dest = 'package',
+                            help = 'Specify a package name to check.', required=True)
 
     # option for specifying a platform
     parser.add_argument('--platform', '-pl', action = "store", dest = 'platform',
