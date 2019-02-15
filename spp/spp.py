@@ -162,11 +162,12 @@ def get_releases(channel, name):
             # first try and get releases from releases endpoint
             releases = get_channel_data(packages['releases_url'].replace('{/id}', ''))
 
-            if 'tag_name' in releases[0].keys():
-                releases.sort(key=lambda x: parse_version(x['tag_name']), reverse=True)
+            if releases:
+                if 'tag_name' in releases[0].keys():
+                    releases.sort(key=lambda x: parse_version(x['tag_name']), reverse=True)
             else:
                 # if no releases fallback on tags endpoint
-                releases = get_channel_data(packages['tags_url'])
+                releases = get_channel_data(packages['tags_url'] + "?&client_id=&client_secret=")
                 releases.sort(key=lambda x: parse_version(x['name']), reverse=True)
         else:
             packages = get_channel_data(channel[1])['packages']
@@ -235,21 +236,21 @@ def main():
     parser = argparse.ArgumentParser()
 
     # package name
-    parser.add_argument('--package', '-p', action = "store", dest = 'package',
-                            help = 'Specify a package name to check.', required=True)
+    parser.add_argument('--package', '-p', action="store", dest='package',
+                            help='Specify a package name to check.', required=True)
 
     # option for specifying a platform
-    parser.add_argument('--platform', '-pl', action = "store", dest = 'platform',
+    parser.add_argument('--platform', '-pl', action="store", dest='platform',
                             choices=["osx-64", "linux-32", "linux-64", "win-32", "win-64", "noarch"],
-                            help = 'Specify a platform.', required=False)
+                            help='Specify a platform.', required=False)
 
     # defaults to only showing latest version, shows all if given -a
-    parser.add_argument('--all', '-a', action = "store_true", dest = 'all',
-                            help = 'Display all versions available on each channel.', required=False)
+    parser.add_argument('--all', '-a', action="store_true", dest='all',
+                            help='Display all versions available on each channel.', required=False)
 
     # option to output to file in JSON format
-    parser.add_argument('--json', '-j', action = "store_true", dest = 'json',
-                            help = 'Save JSON output.', required=False)
+    parser.add_argument('--json', '-j', action="store_true", dest='json',
+                            help='Save JSON output.', required=False)
 
     args = parser.parse_args()
 
@@ -257,6 +258,7 @@ def main():
         json_package_info(name=args.package, platform=args.platform, all=args.all)
     else:
         display_package_info(name=args.package, platform=args.platform, all=args.all)
+
 
 if (__name__ == '__main__'):
     main()
